@@ -6,15 +6,18 @@ Auto-sync Apple Health sleep data → Google Calendar with scores (😴 🟢 �
 
 Your Mac syncs Health data from iPhone via iCloud. Use this instead of iOS Shortcuts:
 
+**Option 1: launchd (Native macOS)**
 ```bash
-# One-time setup
-./setup_cron.sh
-
-# Test now
-./auto_export_mac.sh
+./setup_cron.sh        # Sets up macOS native scheduler
+./auto_export_mac.sh   # Test now
 ```
 
-**Done!** Runs daily at 4 AM. No iPhone shortcuts needed.
+**Option 2: Mac Shortcuts App (Most Apple-like)**
+```bash
+./setup_mac_shortcut.sh  # Shows instructions for Shortcuts app
+```
+
+**Done!** Runs daily at 4 AM automatically. No iPhone configuration needed.
 
 ## What It Does
 
