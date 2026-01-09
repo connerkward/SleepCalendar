@@ -2,22 +2,35 @@
 
 Auto-sync Apple Health sleep data → Google Calendar with scores (😴 🟢 🔴)
 
-## Mac Setup (Recommended)
+## Setup
 
-Your Mac syncs Health data from iPhone via iCloud. Use this instead of iOS Shortcuts:
+**Health data must be exported from iPhone** (no direct Mac export exists).
 
-**Option 1: launchd (Native macOS)**
+### Option 1: Manual Export (Simplest)
+
+1. **Export from iPhone** (weekly/monthly):
+   - Health app → Profile → Export All Health Data
+   - AirDrop ZIP to Mac → Extract to Downloads
+   
+2. **Upload from Mac**:
+   ```bash
+   ./auto_export_mac.sh
+   ```
+
+See `SETUP_IPHONE_EXPORT.md` for detailed steps.
+
+### Option 2: Automate with launchd (after manual export)
+
 ```bash
-./setup_cron.sh        # Sets up macOS native scheduler
+./setup_cron.sh        # Checks Downloads daily
 ./auto_export_mac.sh   # Test now
 ```
 
-**Option 2: Mac Shortcuts App (Most Apple-like)**
-```bash
-./setup_mac_shortcut.sh  # Shows instructions for Shortcuts app
-```
+This checks for updated exports and uploads to GitHub.
 
-**Done!** Runs daily at 4 AM automatically. No iPhone configuration needed.
+### Option 3: iOS Shortcut (Fully Automated)
+
+Build iOS Shortcut once, runs daily automatically. See iOS Shortcuts documentation.
 
 ## What It Does
 
