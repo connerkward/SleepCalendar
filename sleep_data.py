@@ -87,8 +87,9 @@ class SleepCalendar:
         self.calendar_id = self.get_or_create_calendar()
         print(f"Using calendar: {self.calendar_id}")
         
-        # Filter recent entries
-        cutoff = datetime.now() - timedelta(days=days)
+        # Filter recent entries (timezone aware)
+        from datetime import timezone
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
         count = 0
         
         for sample in samples:
