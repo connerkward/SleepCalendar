@@ -1,0 +1,38 @@
+name: Sync Sleep Data
+
+on:
+  push:
+    paths:
+      - 'export.xml'
+      - 'export.json'
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      
+      - name: Sync to Calendar
+        env:
+          GOOGLE_CALENDAR_CREDENTIALS: ${{ secrets.GOOGLE_CALENDAR_CREDENTIALS }}
+          SHARE_WITH_EMAILS: YOUR_EMAILS
+        run: |
+          echo "$GOOGLE_CALENDAR_CREDENTIALS" > service-account.json
+          
+          if [ -f "export.json" ]; then
+            python3 sync_sleep_calendar.py --export-file export.json
+          elif [ -f "export.xml" ]; then
+            python3 sync_sleep_calendar.py --export-file export.xml
+          else
+            echo "❌ No export file found"
+            exit 1
+          fi
