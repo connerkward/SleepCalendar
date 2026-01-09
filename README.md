@@ -35,7 +35,7 @@ Open **Shortcuts app on iPhone** → Create new shortcut → Add these actions:
 #### Actions:
 
 1. **Find Health Samples**
-   - Type: `Sleep Analysis`
+   - Type: `Sleep` (select from the list)
    - Date: `Last 7 Days`
 
 2. **Repeat with Each** (item = Health Sample)
