@@ -3,7 +3,6 @@ name: Sync Sleep Data
 on:
   push:
     paths:
-      - 'export.xml'
       - 'export.json'
   workflow_dispatch:
 
@@ -24,15 +23,7 @@ jobs:
       - name: Sync to Calendar
         env:
           GOOGLE_CALENDAR_CREDENTIALS: ${{ secrets.GOOGLE_CALENDAR_CREDENTIALS }}
-          SHARE_WITH_EMAILS: YOUR_EMAILS
+          SHARE_WITH_EMAILS: ${{ secrets.SHARE_WITH_EMAILS }}
         run: |
           echo "$GOOGLE_CALENDAR_CREDENTIALS" > service-account.json
-          
-          if [ -f "export.json" ]; then
-            python3 sync_sleep_calendar.py --export-file export.json
-          elif [ -f "export.xml" ]; then
-            python3 sync_sleep_calendar.py --export-file export.xml
-          else
-            echo "❌ No export file found"
-            exit 1
-          fi
+          python3 sleep_data.py export.json
