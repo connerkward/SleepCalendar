@@ -76,11 +76,13 @@ Open **Shortcuts app on iPhone** → Create new shortcut → Add these actions:
 
 12. **Get Current Date**
     - Format: Custom
-    - Format String: `yyyy-MM-dd-HHmmss`
+    - Format String: `yyyy-MM-dd'T'HHmmss`
+    - Locale: Leave as default (doesn't matter for numeric-only formats)
+    - (This produces: `2026-01-17T213045`)
 
 13. **Text**
     - Content: `export-[Current Date from step 12].json`
-    - (This creates a unique filename like `export-2026-01-17-213045.json`)
+    - (This creates a unique filename like `export-2026-01-17T213045.json`)
 
 14. **Dictionary**
     - `message`: `Update sleep data`
