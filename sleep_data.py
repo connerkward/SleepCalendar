@@ -119,12 +119,25 @@ class SleepCalendar:
                     'end': {'dateTime': end.isoformat(), 'timeZone': 'America/Los_Angeles'},
                 }
                 
-                # Insert (ignore duplicates)
-                try:
-                    self.service.events().insert(calendarId=self.calendar_id, body=event).execute()
-                    count += 1
-                except HttpError:
-                    pass  # Likely duplicate
+                # Check if event exists for this time window (within 1 minute)
+                time_min = (start - timedelta(minutes=1)).isoformat()
+                time_max = (end + timedelta(minutes=1)).isoformat()
+                existing_events = self.service.events().list(
+                    calendarId=self.calendar_id,
+                    timeMin=time_min,
+                    timeMax=time_max,
+                    singleEvents=True
+                ).execute()
+                
+                # If event exists, skip to preserve manual edits
+                # If not, insert new event
+                if not existing_events.get('items'):
+                    try:
+                        self.service.events().insert(calendarId=self.calendar_id, body=event).execute()
+                        count += 1
+                    except HttpError as e:
+                        print(f"Error inserting event: {e}")
+                # else: event exists, skip (preserves manual edits)
                 
             except Exception as e:
                 print(f"Skip entry: {e}")
