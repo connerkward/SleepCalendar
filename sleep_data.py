@@ -105,6 +105,60 @@ class SleepCalendar:
         
         return int(score), emoji
     
+    def group_sleep_sessions(self, samples, la_tz):
+        """Group sleep samples into sleep sessions (one per night)."""
+        parsed_samples = []
+        for sample in samples:
+            try:
+                start_raw = sample.get('startDate') or sample.get('start')
+                end_raw = sample.get('endDate') or sample.get('end')
+                if not start_raw or not end_raw:
+                    continue
+                
+                start = date_parser.parse(start_raw)
+                end = date_parser.parse(end_raw)
+                
+                # Ensure timezone-aware
+                if start.tzinfo is None:
+                    start = la_tz.localize(start)
+                else:
+                    start = start.astimezone(la_tz)
+                if end.tzinfo is None:
+                    end = la_tz.localize(end)
+                else:
+                    end = end.astimezone(la_tz)
+                
+                parsed_samples.append({
+                    'start': start,
+                    'end': end,
+                    'value': sample.get('value', 'Unknown').strip(),
+                    'source': sample.get('sourceName', sample.get('source', '')).strip() or 'Apple Health'
+                })
+            except Exception:
+                continue
+        
+        parsed_samples.sort(key=lambda x: x['start'])
+        
+        sessions = []
+        current_session = None
+        
+        for sample in parsed_samples:
+            if current_session is None:
+                current_session = {'start': sample['start'], 'end': sample['end'], 'intervals': [sample]}
+            else:
+                time_diff = sample['start'] - current_session['end']
+                if time_diff <= timedelta(hours=2) and time_diff >= timedelta(minutes=-30):
+                    current_session['end'] = max(current_session['end'], sample['end'])
+                    current_session['intervals'].append(sample)
+                else:
+                    sessions.append(current_session)
+                    current_session = {'start': sample['start'], 'end': sample['end'], 'intervals': [sample]}
+        
+        if current_session:
+            sessions.append(current_session)
+        
+        return sessions
+    
     def sync(self, json_file='export.json', days=30):
         """Sync sleep data to calendar."""
         # Read JSON
@@ -118,95 +172,181 @@ class SleepCalendar:
         if isinstance(samples, str):
             samples = [json.loads(line) for line in samples.strip().split('\n') if line.strip()]
         
-        print(f"Found {len(samples)} sleep entries")
+        print(f"Found {len(samples)} raw sleep entries")
         
-        # Get/create calendar
         self.calendar_id = self.get_or_create_calendar()
         print(f"Using calendar: {self.calendar_id}")
         
-        # Filter recent entries (timezone aware)
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
         la_tz = pytz.timezone('America/Los_Angeles')
+        
+        sessions = self.group_sleep_sessions(samples, la_tz)
+        
         count = 0
         
-        for sample in samples:
+        for session in sessions:
             try:
-                start_raw = sample.get('startDate') or sample.get('start')
-                end_raw = sample.get('endDate') or sample.get('end')
+                # Filter out "Awake" intervals for total asleep time calculation
+                asleep_intervals = [i for i in session['intervals'] if i['value'] != 'Awake']
                 
-                if not start_raw or not end_raw:
+                if not asleep_intervals:
+                    continue  # Skip sessions with no asleep time
+
+                # Calculate total asleep time (excluding Awake)
+                total_asleep_min = sum(
+                    (i['end'] - i['start']).total_seconds() / 60
+                    for i in asleep_intervals
+                )
+                total_asleep_hours = total_asleep_min / 60
+                
+                # Calculate stage breakdown
+                stage_durations = {}
+                for i in asleep_intervals:
+                    stage = i['value']
+                    dur_min = (i['end'] - i['start']).total_seconds() / 60
+                    stage_durations[stage] = stage_durations.get(stage, 0) + dur_min
+                
+                # Session start/end (from first interval to last interval, including awake)
+                session_start = min(i['start'] for i in session['intervals'])
+                session_end = max(i['end'] for i in session['intervals'])
+                
+                # Convert to UTC for cutoff comparison
+                session_start_utc = session_start.astimezone(timezone.utc)
+                if session_start_utc < cutoff:
                     continue
                 
-                start = date_parser.parse(start_raw)
-                end = date_parser.parse(end_raw)
+                # Calculate score based on total asleep time
+                score, emoji = self.calculate_score(total_asleep_hours)
                 
-                # Ensure timezone-aware: localize naive dates to LA timezone
-                if start.tzinfo is None:
-                    start = la_tz.localize(start)
+                # Score description
+                if score >= 70:
+                    score_desc = 'Good (ideal 7-8 hours)'
+                elif score >= 50:
+                    score_desc = 'Fair (6-7 hours)'
                 else:
-                    # If already timezone-aware, convert to LA timezone
-                    start = start.astimezone(la_tz)
+                    score_desc = 'Poor (<6 hours or >10 hours)'
+
+                # Format stage breakdown for description
+                stage_breakdown_lines = []
+                for stage_name in ['Core', 'Deep', 'REM', 'Awake']:
+                    if stage_name in stage_durations:
+                        mins = stage_durations[stage_name]
+                        stage_breakdown_lines.append(f'{stage_name}: {int(mins)} min ({mins/60:.1f} hr)')
+                    elif stage_name == 'Awake':
+                        awake_mins = sum((i['end'] - i['start']).total_seconds() / 60 for i in session['intervals'] if i['value'] == 'Awake')
+                        if awake_mins > 0:
+                            stage_breakdown_lines.append(f'Awake: {int(awake_mins)} min ({awake_mins/60:.1f} hr)')
+
+                # Get source (most common from intervals)
+                all_sources = [i.get('source', 'Apple Health') for i in session['intervals']]
+                source = max(set(all_sources), key=all_sources.count) if all_sources else 'Apple Health'
                 
-                if end.tzinfo is None:
-                    end = la_tz.localize(end)
-                else:
-                    # If already timezone-aware, convert to LA timezone
-                    end = end.astimezone(la_tz)
+                # Create description for aggregated event
+                description_lines = [
+                    f'Sleep Score: {score}/100 ({score_desc})',
+                    f'',
+                    f'Time Asleep: {total_asleep_hours:.1f} hours ({int(total_asleep_min)} min)',
+                    f'Source: {source}',
+                    f'',
+                    f'Stage Breakdown:'
+                ]
+                description_lines.extend(stage_breakdown_lines)
+                description_lines.extend([
+                    f'',
+                    f'Score Breakdown:',
+                    f'🟢 70-100: Good sleep (7-8 hours ideal)',
+                    f'😴 50-69: Fair sleep (6-7 hours)',
+                    f'🔴 0-49: Poor sleep (<6 hours or >10 hours)'
+                ])
                 
-                # Convert to UTC for comparison with cutoff
-                # Both start and cutoff should now be timezone-aware
-                start_utc = start.astimezone(timezone.utc)
-                if start_utc < cutoff:
-                    continue
-                
-                # Calculate score
-                duration = (end - start).total_seconds() / 3600
-                score, emoji = self.calculate_score(duration)
-                
-                # Create event
-                source = sample.get('sourceName', sample.get('source', 'Unknown'))
                 event = {
-                    'summary': f'{emoji} Sleep ({duration:.1f}h)',
-                    'description': f'Score: {score}\nSource: {source}\nDuration: {duration:.1f} hours',
-                    'start': {'dateTime': start.isoformat(), 'timeZone': 'America/Los_Angeles'},
-                    'end': {'dateTime': end.isoformat(), 'timeZone': 'America/Los_Angeles'},
+                    'summary': f'{emoji} Sleep ({total_asleep_hours:.1f}h)',
+                    'description': '\n'.join(description_lines),
+                    'start': {'dateTime': session_start.isoformat(), 'timeZone': 'America/Los_Angeles'},
+                    'end': {'dateTime': session_end.isoformat(), 'timeZone': 'America/Los_Angeles'},
                 }
                 
-                # Check for existing events in this time window (within 1 minute)
-                # start and end are already timezone-aware at this point
-                time_min = (start - timedelta(minutes=1)).isoformat()
-                time_max = (end + timedelta(minutes=1)).isoformat()
-                existing = self.service.events().list(
+                # Check if aggregated event exists (within 5 minutes)
+                time_min = (session_start - timedelta(minutes=5)).isoformat()
+                time_max = (session_end + timedelta(minutes=5)).isoformat()
+                existing_events = self.service.events().list(
                     calendarId=self.calendar_id,
                     timeMin=time_min,
                     timeMax=time_max,
                     singleEvents=True
                 ).execute()
                 
-                # Check if duplicate exists (same summary in time window)
-                is_duplicate = False
-                for existing_event in existing.get('items', []):
-                    if existing_event.get('summary') == event['summary']:
-                        is_duplicate = True
+                aggregated_exists = False
+                for existing in existing_events.get('items', []):
+                    summary = existing.get('summary', '')
+                    if ('Sleep' in summary and ('🟢' in summary or '😴' in summary or '🔴' in summary)) and 'h)' in summary:
+                        aggregated_exists = True
                         break
                 
-                # Insert only if not duplicate
-                if not is_duplicate:
+                if not aggregated_exists:
                     try:
                         self.service.events().insert(calendarId=self.calendar_id, body=event).execute()
                         count += 1
+                        print(f"Created aggregated event: {session_start.strftime('%m/%d %H:%M')} - {total_asleep_hours:.1f}h")
                     except HttpError as e:
-                        print(f"Error inserting event: {e}", file=sys.stderr)
+                        print(f"Error inserting aggregated event: {e}", file=sys.stderr)
+                
+                # Create separate events for each stage interval
+                stage_emojis = {
+                    'Core': '💙',
+                    'Deep': '💜',
+                    'REM': '💤',
+                    'Awake': '🔴'
+                }
+                
+                for interval in session['intervals']:
+                    stage = interval['value']
+                    if not stage:
+                        continue
+                    
+                    interval_start = interval['start']
+                    interval_end = interval['end']
+                    duration_min = (interval_end - interval_start).total_seconds() / 60
+                    duration_hours = duration_min / 60
+                    
+                    stage_emoji = stage_emojis.get(stage, '⏱')
+                    
+                    stage_event = {
+                        'summary': f'{stage_emoji} {stage} ({duration_hours:.1f}h)',
+                        'description': f'Stage: {stage}\nDuration: {duration_min:.0f} min ({duration_hours:.1f} hours)\nSource: {interval.get("source", "Apple Health")}',
+                        'start': {'dateTime': interval_start.isoformat(), 'timeZone': 'America/Los_Angeles'},
+                        'end': {'dateTime': interval_end.isoformat(), 'timeZone': 'America/Los_Angeles'},
+                    }
+                    
+                    # Check if this specific stage event exists (within 1 minute)
+                    stage_time_min = (interval_start - timedelta(minutes=1)).isoformat()
+                    stage_time_max = (interval_end + timedelta(minutes=1)).isoformat()
+                    existing_stage_events = self.service.events().list(
+                        calendarId=self.calendar_id,
+                        timeMin=stage_time_min,
+                        timeMax=stage_time_max,
+                        singleEvents=True
+                    ).execute()
+                    
+                    stage_exists = False
+                    for existing in existing_stage_events.get('items', []):
+                        if existing.get('summary', '').startswith(stage_emoji) and stage in existing.get('summary', ''):
+                            stage_exists = True
+                            break
+                    
+                    if not stage_exists:
+                        try:
+                            self.service.events().insert(calendarId=self.calendar_id, body=stage_event).execute()
+                            count += 1
+                            print(f"Created stage event: {stage_emoji} {stage} ({duration_hours:.1f}h)")
+                        except HttpError as e:
+                            print(f"Error inserting stage event ({stage}): {e}", file=sys.stderr)
                 
             except Exception as e:
-                import traceback
-                print(f"Skip entry: {e}")
-                if "can't compare" in str(e):
-                    print(f"  Sample: {sample.get('startDate', 'no start')[:50]}")
-                    print(f"  Parsed start type: {type(start) if 'start' in locals() else 'not parsed'}")
+                print(f"Skip session: {e}", file=sys.stderr)
                 continue
         
-        print(f"✅ Synced {count} events")
+        print(f"✅ Synced {count} events (aggregated + stage events)")
         print(f"📅 Calendar: https://calendar.google.com/calendar/embed?src={self.calendar_id}")
         return count
 
