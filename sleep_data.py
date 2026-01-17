@@ -215,7 +215,11 @@ class SleepCalendar:
                     dur_min = (i['end'] - i['start']).total_seconds() / 60
                     stage_durations[stage] = stage_durations.get(stage, 0) + dur_min
                 
-                # Session start/end (from first interval to last interval, including awake)
+                # Aggregated event start/end (only asleep intervals - excludes Awake gaps)
+                aggregated_start = min(i['start'] for i in asleep_intervals)
+                aggregated_end = max(i['end'] for i in asleep_intervals)
+                
+                # Session start/end (from all intervals - used for cutoff check only)
                 session_start = min(i['start'] for i in session['intervals'])
                 session_end = max(i['end'] for i in session['intervals'])
                 
@@ -276,13 +280,13 @@ class SleepCalendar:
                 event = {
                     'summary': f'{emoji} Sleep ({total_asleep_hours:.1f}h)',
                     'description': '\n'.join(description_lines),
-                    'start': {'dateTime': session_start.isoformat(), 'timeZone': 'America/Los_Angeles'},
-                    'end': {'dateTime': session_end.isoformat(), 'timeZone': 'America/Los_Angeles'},
+                    'start': {'dateTime': aggregated_start.isoformat(), 'timeZone': 'America/Los_Angeles'},
+                    'end': {'dateTime': aggregated_end.isoformat(), 'timeZone': 'America/Los_Angeles'},
                 }
                 
                 # Check if aggregated event exists (within 5 minutes)
-                time_min = (session_start - timedelta(minutes=5)).isoformat()
-                time_max = (session_end + timedelta(minutes=5)).isoformat()
+                time_min = (aggregated_start - timedelta(minutes=5)).isoformat()
+                time_max = (aggregated_end + timedelta(minutes=5)).isoformat()
                 existing_events = self.service.events().list(
                     calendarId=self.calendar_id,
                     timeMin=time_min,
@@ -301,7 +305,7 @@ class SleepCalendar:
                     try:
                         self.service.events().insert(calendarId=self.calendar_id, body=event).execute()
                         count += 1
-                        print(f"Created aggregated event: {session_start.strftime('%m/%d %H:%M')} - {total_asleep_hours:.1f}h")
+                        print(f"Created aggregated event: {aggregated_start.strftime('%m/%d %H:%M')} - {total_asleep_hours:.1f}h")
                     except HttpError as e:
                         print(f"Error inserting aggregated event: {e}", file=sys.stderr)
                 
