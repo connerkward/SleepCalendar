@@ -143,15 +143,18 @@ class SleepCalendar:
                 # Ensure timezone-aware: localize naive dates to LA timezone
                 if start.tzinfo is None:
                     start = la_tz.localize(start)
-                elif start.tzinfo != la_tz:
+                else:
+                    # If already timezone-aware, convert to LA timezone
                     start = start.astimezone(la_tz)
                 
                 if end.tzinfo is None:
                     end = la_tz.localize(end)
-                elif end.tzinfo != la_tz:
+                else:
+                    # If already timezone-aware, convert to LA timezone
                     end = end.astimezone(la_tz)
                 
                 # Convert to UTC for comparison with cutoff
+                # Both start and cutoff should now be timezone-aware
                 start_utc = start.astimezone(timezone.utc)
                 if start_utc < cutoff:
                     continue
@@ -170,6 +173,7 @@ class SleepCalendar:
                 }
                 
                 # Check for existing events in this time window (within 1 minute)
+                # start and end are already timezone-aware at this point
                 time_min = (start - timedelta(minutes=1)).isoformat()
                 time_max = (end + timedelta(minutes=1)).isoformat()
                 existing = self.service.events().list(
