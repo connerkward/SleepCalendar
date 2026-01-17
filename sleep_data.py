@@ -188,17 +188,29 @@ class SleepCalendar:
             try:
                 # Filter out "Awake" intervals - only include Core, Deep, REM
                 valid_stages = {'Core', 'Deep', 'REM'}
-                asleep_intervals = [i for i in session['intervals'] if i.get('value', '').strip() in valid_stages]
+                asleep_intervals = []
+                awake_intervals = []
+                
+                for i in session['intervals']:
+                    value = str(i.get('value', '')).strip()
+                    if value in valid_stages:
+                        asleep_intervals.append(i)
+                    elif value.lower() == 'awake':
+                        awake_intervals.append(i)
                 
                 if not asleep_intervals:
                     continue  # Skip sessions with no asleep time
 
-                # Calculate total asleep time (excluding Awake)
+                # Calculate total asleep time (EXCLUDING Awake - only Core, Deep, REM)
                 total_asleep_min = sum(
                     (i['end'] - i['start']).total_seconds() / 60
                     for i in asleep_intervals
                 )
                 total_asleep_hours = total_asleep_min / 60
+                
+                # Debug: verify Awake is excluded
+                awake_total_min = sum((i['end'] - i['start']).total_seconds() / 60 for i in awake_intervals) if awake_intervals else 0
+                print(f"Session {session_start.strftime('%m/%d')}: asleep={total_asleep_hours:.1f}h, awake={awake_total_min/60:.1f}h, total_intervals={len(session['intervals'])}, asleep_only={len(asleep_intervals)}")
                 
                 # Calculate stage breakdown
                 stage_durations = {}

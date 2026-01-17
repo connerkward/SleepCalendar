@@ -44,8 +44,10 @@ jobs:
         run: |
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
-          if git status --porcelain | grep -q export; then
-            git add export-*.json
+          # Stage all changes (including deletions)
+          git add -A
+          # Only commit if there are changes
+          if ! git diff --cached --quiet; then
             git commit -m "Clean up old export files" || true
             git push || true
           fi
