@@ -208,11 +208,7 @@ class SleepCalendar:
                 )
                 total_asleep_hours = total_asleep_min / 60
                 
-                # Debug: verify Awake is excluded
-                awake_total_min = sum((i['end'] - i['start']).total_seconds() / 60 for i in awake_intervals) if awake_intervals else 0
-                print(f"Session {session_start.strftime('%m/%d')}: asleep={total_asleep_hours:.1f}h, awake={awake_total_min/60:.1f}h, total_intervals={len(session['intervals'])}, asleep_only={len(asleep_intervals)}")
-                
-                # Calculate stage breakdown
+                # Calculate stage breakdown (only from asleep_intervals - excludes Awake)
                 stage_durations = {}
                 for i in asleep_intervals:
                     stage = i['value']
@@ -222,6 +218,11 @@ class SleepCalendar:
                 # Session start/end (from first interval to last interval, including awake)
                 session_start = min(i['start'] for i in session['intervals'])
                 session_end = max(i['end'] for i in session['intervals'])
+                
+                # Debug: verify Awake is excluded
+                awake_total_min = sum((i['end'] - i['start']).total_seconds() / 60 for i in awake_intervals) if awake_intervals else 0
+                all_values = [i.get('value', '') for i in session['intervals']]
+                print(f"Session {session_start.strftime('%m/%d')}: asleep={total_asleep_hours:.1f}h (from {len(asleep_intervals)} intervals), awake={awake_total_min/60:.1f}h, all_values={set(all_values)}")
                 
                 # Convert to UTC for cutoff comparison
                 session_start_utc = session_start.astimezone(timezone.utc)
