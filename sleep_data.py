@@ -4,11 +4,12 @@
 import json
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from dateutil import parser as date_parser
+import pytz
 
 
 class SleepCalendar:
@@ -124,16 +125,35 @@ class SleepCalendar:
         print(f"Using calendar: {self.calendar_id}")
         
         # Filter recent entries (timezone aware)
-        from datetime import timezone
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        la_tz = pytz.timezone('America/Los_Angeles')
         count = 0
         
         for sample in samples:
             try:
-                start = date_parser.parse(sample.get('startDate') or sample.get('start'))
-                end = date_parser.parse(sample.get('endDate') or sample.get('end'))
+                start_raw = sample.get('startDate') or sample.get('start')
+                end_raw = sample.get('endDate') or sample.get('end')
                 
-                if start < cutoff:
+                if not start_raw or not end_raw:
+                    continue
+                
+                start = date_parser.parse(start_raw)
+                end = date_parser.parse(end_raw)
+                
+                # Ensure timezone-aware: localize naive dates to LA timezone
+                if start.tzinfo is None:
+                    start = la_tz.localize(start)
+                elif start.tzinfo != la_tz:
+                    start = start.astimezone(la_tz)
+                
+                if end.tzinfo is None:
+                    end = la_tz.localize(end)
+                elif end.tzinfo != la_tz:
+                    end = end.astimezone(la_tz)
+                
+                # Convert to UTC for comparison with cutoff
+                start_utc = start.astimezone(timezone.utc)
+                if start_utc < cutoff:
                     continue
                 
                 # Calculate score
@@ -175,7 +195,11 @@ class SleepCalendar:
                         print(f"Error inserting event: {e}", file=sys.stderr)
                 
             except Exception as e:
+                import traceback
                 print(f"Skip entry: {e}")
+                if "can't compare" in str(e):
+                    print(f"  Sample: {sample.get('startDate', 'no start')[:50]}")
+                    print(f"  Parsed start type: {type(start) if 'start' in locals() else 'not parsed'}")
                 continue
         
         print(f"✅ Synced {count} events")
