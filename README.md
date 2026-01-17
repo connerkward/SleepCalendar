@@ -74,45 +74,35 @@ Open **Shortcuts app on iPhone** → Create new shortcut → Add these actions:
     - Required scope: `repo` (full control of private repositories)
     - Copy the token and paste here
 
-12. **Get Contents of URL** (GET existing file to get sha)
-    - Method: `GET`
-    - URL: `https://api.github.com/repos/YOUR_USERNAME/YOUR_REPO/contents/export.json`
-    - Headers:
-      - `Authorization`: `token [Text from step 11]`
-      - `Accept`: `application/vnd.github.v3+json`
+12. **Get Current Date**
+    - Format: Custom
+    - Format String: `yyyy-MM-dd-HHmmss`
 
-13. **Get Dictionary from Input**
-    - Input: Contents of URL from step 12
+13. **Text**
+    - Content: `export-[Current Date from step 12].json`
+    - (This creates a unique filename like `export-2026-01-17-213045.json`)
 
-14. **Get Value for Key**
-    - Dictionary: [Dictionary from step 13]
-    - Key: `sha`
-    - (This extracts the current file's SHA hash)
-
-15. **Dictionary**
+14. **Dictionary**
     - `message`: `Update sleep data`
     - `content`: [Base64 from step 10]
-    - `sha`: [Value from step 14]
 
-16. **Text**
-    - Insert Dictionary from step 15 (converts to JSON)
+15. **Text**
+    - Insert Dictionary from step 14 (converts to JSON)
 
-17. **Get Contents of URL** (PUT to update file)
+16. **Get Contents of URL** (PUT to create new file - no SHA needed!)
     - Method: `PUT`
-    - URL: `https://api.github.com/repos/YOUR_USERNAME/YOUR_REPO/contents/export.json`
+    - URL: `https://api.github.com/repos/YOUR_USERNAME/YOUR_REPO/contents/[Text from step 13]`
     - Headers:
       - `Authorization`: `token [Text from step 11]`
       - `Accept`: `application/vnd.github.v3+json`
       - `Content-Type`: `application/json`
     - Request Body Type: `File`
-    - Request Body: [Text from step 16]
+    - Request Body: [Text from step 15]
 
-18. **Show Notification**
+17. **Show Notification**
     - "✅ Sleep data uploaded"
 
-**Note:** On the first run (when `export.json` doesn't exist yet), step 12 may fail with a 404. You can either:
-- Handle the error gracefully (use "If" action to check for error, then set sha to empty string)
-- Or manually create an empty `export.json` file in your repo first
+**Note:** Each run creates a new timestamped file (no SHA needed!). The GitHub Action finds and processes the latest one, then cleans up old files.
 
 #### Automate:
 
@@ -125,9 +115,11 @@ Open **Shortcuts app on iPhone** → Create new shortcut → Add these actions:
 ### 4. Test
 
 Run the shortcut manually once. Check:
-- GitHub for `export.json`
+- GitHub for `export-YYYY-MM-DD-HHMMSS.json` file
 - Actions tab for workflow run
 - Google Calendar for events
+
+**Note:** Each shortcut run creates a new timestamped file. Old files are automatically cleaned up (keeps last 5).
 
 ## Done
 
