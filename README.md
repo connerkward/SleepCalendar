@@ -58,41 +58,41 @@ Open **Shortcuts app on iPhone** → Create new shortcut → Add these actions:
 
 7. **End Repeat**
 
-8. **Get Items from Input**
+8. **Dictionary**
+   - `samples`: [Repeat Results]
 
-9. **Dictionary**
-   - `samples`: [Items from step 8]
+9. **Text**
+   - Insert the Dictionary variable from step 8 into the text field
+   - This converts the dictionary to JSON text format
 
-10. **Make JSON**
+10. **Base64 Encode**
+    - Input: Text from step 9
 
-11. **Base64 Encode**
-
-12. **Text**
+11. **Text**
     - Content: `YOUR_GITHUB_TOKEN`
     - Generate token: GitHub Settings → Developer settings → Personal access tokens → Tokens (classic) → Generate new token
     - Required scope: `repo` (full control of private repositories)
     - Copy the token and paste here
 
-13. **Get Current Date**
+12. **Text**
+    - Content: 
+      ```
+      {
+        "message": "Update sleep data",
+        "content": "[Base64 from step 10]"
+      }
+      ```
+    - Replace `[Base64 from step 10]` with the actual Base64 variable (tap the placeholder, select Base64 Encoded from step 10)
 
-14. **Text**
-    ```json
-    {
-      "message": "Update sleep data",
-      "content": "[Base64 from step 11]"
-    }
-    ```
-    - Replace `[Base64 from step 11]` with the actual Base64 variable
-
-15. **Get Contents of URL**
+13. **Get Contents of URL**
     - Method: `PUT`
     - URL: `https://api.github.com/repos/YOUR_USERNAME/YOUR_REPO/contents/export.json`
     - Headers:
-      - `Authorization`: `token [Text from step 12]`
+      - `Authorization`: `token [Text from step 11]`
       - `Accept`: `application/vnd.github.v3+json`
-    - Body: [Text from step 14]
+    - Body: [Text from step 12]
 
-16. **Show Notification**
+14. **Show Notification**
     - "✅ Sleep data uploaded"
 
 #### Automate:

@@ -36,11 +36,11 @@ class SleepCalendar:
         created = self.service.calendars().insert(body=calendar).execute()
         cal_id = created['id']
         
-        # Make public read-only
+        # Make public read-only (for easy subscription in Google Calendar)
         acl = {'scope': {'type': 'default'}, 'role': 'reader'}
         self.service.acl().insert(calendarId=cal_id, body=acl).execute()
         
-        # Share with emails (if provided)
+        # Share with emails (if provided) for write access
         for email in self.share_emails:
             if email.strip():
                 try:
@@ -80,7 +80,13 @@ class SleepCalendar:
         with open(json_file, 'r') as f:
             data = json.load(f)
         
+        # Handle different formats
         samples = data if isinstance(data, list) else data.get('samples', [])
+        
+        # If samples is a string (newline-delimited JSON), parse it
+        if isinstance(samples, str):
+            samples = [json.loads(line) for line in samples.strip().split('\n') if line.strip()]
+        
         print(f"Found {len(samples)} sleep entries")
         
         # Get/create calendar
