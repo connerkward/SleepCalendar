@@ -35,6 +35,17 @@ jobs:
           echo "$GOOGLE_CALENDAR_CREDENTIALS" > service-account.json
           python3 sleep_data.py ${{ steps.find_file.outputs.file }}
       
-      - name: Clean up old files (keep last 5)
+      - name: Clean up old export files
         run: |
-          ls -t export-*.json 2>/dev/null | tail -n +6 | xargs -r rm -f || true
+          # Delete all export-*.json files after processing
+          rm -f export-*.json || true
+      
+      - name: Commit cleanup
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          if git status --porcelain | grep -q export; then
+            git add export-*.json
+            git commit -m "Clean up old export files" || true
+            git push || true
+          fi

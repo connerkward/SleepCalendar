@@ -132,3 +132,21 @@ Runs daily at 4 AM automatically. Zero maintenance.
 If you set `SHARE_WITH_EMAILS`, those users will have write access to the calendar.
 
 Find in Google Calendar → "Other calendars" → "Sleep Data"
+
+## Sleep Scores
+
+Each sleep event is scored 0-100 based on duration:
+
+- **🟢 70-100**: Good sleep (7-8 hours ideal)
+- **😴 50-69**: Fair sleep (6-7 hours)
+- **🔴 0-49**: Poor sleep (<6 hours or >10 hours)
+
+### Scoring Details
+
+The score calculation:
+- **< 6 hours**: Score = (duration/6) × 50 (0-50 range)
+- **6-8 hours**: Score = 50 + (duration - 6)/2 × 50 (50-100 range, peak at 8h)
+- **8-10 hours**: Score = 100 - (duration - 8)/2 × 10 (100-90 range)
+- **> 10 hours**: Score = max(0, 100 - (duration - 10) × 20)
+
+Scores are shown in the event title (emoji) and description (full score with breakdown).
