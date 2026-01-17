@@ -246,7 +246,7 @@ class SleepCalendar:
                     'end': {'dateTime': session_end.isoformat(), 'timeZone': 'America/Los_Angeles'},
                 }
                 
-                # Check if event exists for this time window (within 5 minutes)
+                # Check if aggregated event exists (look for summary pattern with emoji + "Sleep")
                 time_min = (session_start - timedelta(minutes=5)).isoformat()
                 time_max = (session_end + timedelta(minutes=5)).isoformat()
                 existing_events = self.service.events().list(
@@ -256,11 +256,21 @@ class SleepCalendar:
                     singleEvents=True
                 ).execute()
                 
-                # If aggregated event exists, skip to preserve manual edits
-                if not existing_events.get('items'):
+                # Check specifically for aggregated event (emoji + "Sleep" in summary)
+                aggregated_exists = False
+                for existing in existing_events.get('items', []):
+                    summary = existing.get('summary', '')
+                    # Look for aggregated event pattern: emoji + "Sleep (X.Xh)"
+                    if ('Sleep' in summary and ('🟢' in summary or '😴' in summary or '🔴' in summary)) and 'h)' in summary:
+                        aggregated_exists = True
+                        break
+                
+                # If aggregated event doesn't exist, create it
+                if not aggregated_exists:
                     try:
                         self.service.events().insert(calendarId=self.calendar_id, body=event).execute()
                         count += 1
+                        print(f"Created aggregated event: {session_start.strftime('%m/%d %H:%M')} - {total_asleep_hours:.1f}h")
                     except HttpError as e:
                         print(f"Error inserting aggregated event: {e}")
                 
