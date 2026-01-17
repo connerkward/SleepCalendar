@@ -186,8 +186,9 @@ class SleepCalendar:
         
         for session in sessions:
             try:
-                # Filter out "Awake" intervals for total asleep time calculation
-                asleep_intervals = [i for i in session['intervals'] if i.get('value', '').strip().lower() != 'awake']
+                # Filter out "Awake" intervals - only include Core, Deep, REM
+                valid_stages = {'Core', 'Deep', 'REM'}
+                asleep_intervals = [i for i in session['intervals'] if i.get('value', '').strip() in valid_stages]
                 
                 if not asleep_intervals:
                     continue  # Skip sessions with no asleep time
