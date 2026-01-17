@@ -74,26 +74,45 @@ Open **Shortcuts app on iPhone** → Create new shortcut → Add these actions:
     - Required scope: `repo` (full control of private repositories)
     - Copy the token and paste here
 
-12. **Text**
-    - Content: 
-      ```
-      {
-        "message": "Update sleep data",
-        "content": "[Base64 from step 10]"
-      }
-      ```
-    - Replace `[Base64 from step 10]` with the actual Base64 variable (tap the placeholder, select Base64 Encoded from step 10)
+12. **Get Contents of URL** (GET existing file to get sha)
+    - Method: `GET`
+    - URL: `https://api.github.com/repos/YOUR_USERNAME/YOUR_REPO/contents/export.json`
+    - Headers:
+      - `Authorization`: `token [Text from step 11]`
+      - `Accept`: `application/vnd.github.v3+json`
 
-13. **Get Contents of URL**
+13. **Get Dictionary from Input**
+    - Input: Contents of URL from step 12
+
+14. **Get Value for Key**
+    - Dictionary: [Dictionary from step 13]
+    - Key: `sha`
+    - (This extracts the current file's SHA hash)
+
+15. **Dictionary**
+    - `message`: `Update sleep data`
+    - `content`: [Base64 from step 10]
+    - `sha`: [Value from step 14]
+
+16. **Text**
+    - Insert Dictionary from step 15 (converts to JSON)
+
+17. **Get Contents of URL** (PUT to update file)
     - Method: `PUT`
     - URL: `https://api.github.com/repos/YOUR_USERNAME/YOUR_REPO/contents/export.json`
     - Headers:
       - `Authorization`: `token [Text from step 11]`
       - `Accept`: `application/vnd.github.v3+json`
-    - Body: [Text from step 12]
+      - `Content-Type`: `application/json`
+    - Request Body Type: `File`
+    - Request Body: [Text from step 16]
 
-14. **Show Notification**
+18. **Show Notification**
     - "✅ Sleep data uploaded"
+
+**Note:** On the first run (when `export.json` doesn't exist yet), step 12 may fail with a 404. You can either:
+- Handle the error gracefully (use "If" action to check for error, then set sha to empty string)
+- Or manually create an empty `export.json` file in your repo first
 
 #### Automate:
 

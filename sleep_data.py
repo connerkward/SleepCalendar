@@ -4,11 +4,12 @@
 import json
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from dateutil import parser as date_parser
+import pytz
 
 
 class SleepCalendar:
@@ -94,23 +95,35 @@ class SleepCalendar:
         print(f"Using calendar: {self.calendar_id}")
         
         # Filter recent entries (timezone aware)
-        from datetime import timezone
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
         count = 0
+        la_tz = pytz.timezone('America/Los_Angeles')
         
         for sample in samples:
             try:
                 start = date_parser.parse(sample.get('startDate') or sample.get('start'))
                 end = date_parser.parse(sample.get('endDate') or sample.get('end'))
                 
-                if start < cutoff:
+                # Make timezone-aware if naive (assume America/Los_Angeles timezone)
+                if start.tzinfo is None:
+                    start = la_tz.localize(start)
+                else:
+                    start = start.astimezone(la_tz)
+                if end.tzinfo is None:
+                    end = la_tz.localize(end)
+                else:
+                    end = end.astimezone(la_tz)
+                
+                # Convert to UTC for cutoff comparison
+                start_utc = start.astimezone(timezone.utc)
+                if start_utc < cutoff:
                     continue
                 
                 # Calculate score
                 duration = (end - start).total_seconds() / 3600
                 score, emoji = self.calculate_score(duration)
                 
-                # Create event
+                # Create event (keep times in LA timezone for Google Calendar)
                 source = sample.get('sourceName', sample.get('source', 'Unknown'))
                 event = {
                     'summary': f'{emoji} Sleep ({duration:.1f}h)',
