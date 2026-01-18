@@ -1,0 +1,81 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+      - cloud-run
+    paths:
+      - 'api/**'
+      - 'Dockerfile'
+      - '.cloudbuild.yaml'
+      - 'requirements-api.txt'
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install -r requirements-api.txt
+          pip install pytest pytest-cov
+      
+      - name: Run unit tests
+        run: |
+          python -m pytest tests/ -v --cov=api --cov-report=term-missing
+        env:
+          GOOGLE_CALENDAR_CREDENTIALS: ${{ secrets.GOOGLE_CALENDAR_CREDENTIALS }}
+      
+      - name: Test API server starts
+        run: |
+          python -c "from api.server import app; print('API server imports successfully')"
+  
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/cloud-run'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+      
+      - name: Submit Cloud Build
+        run: |
+          gcloud builds submit \
+            --config=.cloudbuild.yaml \
+            --substitutions=_GOOGLE_CALENDAR_CREDENTIALS="${{ secrets.GOOGLE_CALENDAR_CREDENTIALS }}" \
+            --project=$PROJECT_ID
+      
+      - name: Get Cloud Run URL
+        id: get-url
+        run: |
+          URL=$(gcloud run services describe sleep-calendar-api \
+            --region=us-central1 \
+            --format='value(status.url)' \
+            --project=$PROJECT_ID)
+          echo "service_url=$URL" >> $GITHUB_OUTPUT
+          echo "Deployed to: $URL"
+      
+      - name: Health check
+        run: |
+          URL=${{ steps.get-url.outputs.service_url }}
+          curl -f "$URL/health" || exit 1

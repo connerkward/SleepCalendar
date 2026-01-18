@@ -150,3 +150,35 @@ The score calculation:
 - **> 10 hours**: Score = max(0, 100 - (duration - 10) × 20)
 
 Scores are shown in the event title (emoji) and description (full score with breakdown).
+
+## Cloud Run Deployment (Alternative)
+
+For distributing the shortcut without requiring users to set up GitHub tokens, you can deploy the API to Google Cloud Run.
+
+### Quick Start
+
+1. **Deploy to Cloud Run** (see [CLOUD_RUN_SETUP.md](CLOUD_RUN_SETUP.md) for details):
+   ```bash
+   ./scripts/deploy.sh
+   ```
+
+2. **Update iOS Shortcut** to POST directly to your Cloud Run URL:
+   - Method: `POST`
+   - URL: `https://your-service-url.run.app/sync`
+   - Body: `{"email": "user@example.com", "samples": [...]}`
+
+### Benefits
+
+- No GitHub token needed in shortcut
+- Each user gets their own calendar automatically
+- No per-user setup required
+
+### Setup Guide
+
+See [CLOUD_RUN_SETUP.md](CLOUD_RUN_SETUP.md) for complete deployment instructions, including:
+- Google Cloud setup
+- Service account configuration
+- CI/CD with GitHub Actions
+- API usage examples
+
+The Cloud Run deployment creates per-user calendars named `Sleep Data - {email}`, owned by your service account but shared with each user's email.
