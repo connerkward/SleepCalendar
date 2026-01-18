@@ -4,144 +4,40 @@ Auto-sync iPhone sleep data to Google Calendar with scores (😴 🟢 🔴)
 
 📱 **Get the Shortcut:** [Install from iCloud](https://www.icloud.com/shortcuts/440e470b1c6a462a93fddf04b2b74c87)
 
-## Setup (One Time)
+## Quick Start
 
-### 1. Push to GitHub
+1. **Install the shortcut** using the link above
+2. **Run the shortcut** - it will prompt for your email on first run
+3. **Get your calendar link** from the notification or response
+4. **Subscribe to the calendar** in Google Calendar
 
-```bash
-git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO.git
-git push -u origin main
-```
+## How to Use
 
-### 2. Add GitHub Secrets
+### First Run
 
-1. Go to: `https://github.com/YOUR_USERNAME/SleepCalendar/settings/secrets/actions`
-2. Add these secrets:
-   
-   **GOOGLE_CALENDAR_CREDENTIALS**
-   - Click "New repository secret"
-   - Name: `GOOGLE_CALENDAR_CREDENTIALS`
-   - Value: Paste entire contents of `service-account.json`
-   - Click "Add secret"
-   
-   **SHARE_WITH_EMAILS** (optional)
-   - Click "New repository secret"
-   - Name: `SHARE_WITH_EMAILS`
-   - Value: `email1@example.com,email2@example.com` (comma-separated)
-   - Click "Add secret"
+1. Run the shortcut manually
+2. Enter your email address when prompted (it will be saved for future runs)
+3. The shortcut will sync your sleep data and show your calendar link
 
-### 3. Create iOS Shortcut
+### Daily Automation
 
-**Option A: Use Pre-built Shortcut (Easiest)**
+1. Open **Shortcuts** app → **Automation** tab
+2. **Create Personal Automation** → **Time of Day**
+3. Set time (e.g., `4:00 AM`) → **Daily**
+4. **Run Shortcut** → Select "Sleep Calendar"
+5. Turn off **"Ask Before Running"**
 
-📱 [Get the Shortcut](https://www.icloud.com/shortcuts/440e470b1c6a462a93fddf04b2b74c87)
+The shortcut runs automatically and syncs your sleep data daily.
 
-After installing, configure your email (first run will prompt).
+### Adding Calendar to Google Calendar
 
-**Option B: Build Manually**
+1. Copy the calendar link from the notification (or API response)
+2. Open Google Calendar
+3. Click **+** next to "Other calendars"
+4. **From URL** → Paste the calendar link
+5. Click **Add calendar**
 
-Open **Shortcuts app on iPhone** → Create new shortcut → Add these actions:
-
-#### Actions:
-
-1. **Find Health Samples**
-   - Type: `Sleep` (select from the list)
-   - Date: `Last 7 Days`
-
-2. **Repeat with Each** (item = Health Sample)
-
-3. **Get Details of Health Sample**
-   - Detail: `Start Date`
-   - Format: `ISO 8601`
-
-4. **Get Details of Health Sample**
-   - Detail: `End Date`
-   - Format: `ISO 8601`
-
-5. **Get Details of Health Sample**
-   - Detail: `Source Name`
-
-6. **Dictionary**
-   - `startDate`: [Start Date from step 3]
-   - `endDate`: [End Date from step 4]
-   - `sourceName`: [Source Name from step 5]
-
-7. **End Repeat**
-
-8. **Dictionary**
-   - `samples`: [Repeat Results]
-
-9. **Text**
-   - Insert the Dictionary variable from step 8 into the text field
-   - This converts the dictionary to JSON text format
-
-10. **Base64 Encode**
-    - Input: Text from step 9
-
-11. **Text**
-    - Content: `YOUR_GITHUB_TOKEN`
-    - Generate token: GitHub Settings → Developer settings → Personal access tokens → Tokens (classic) → Generate new token
-    - Required scope: `repo` (full control of private repositories)
-    - Copy the token and paste here
-
-12. **Get Current Date**
-    - Format: Custom
-    - Format String: `yyyy-MM-dd'T'HHmmss`
-    - Locale: Leave as default (doesn't matter for numeric-only formats)
-    - (This produces: `2026-01-17T213045`)
-
-13. **Text**
-    - Content: `export-[Current Date from step 12].json`
-    - (This creates a unique filename like `export-2026-01-17T213045.json`)
-
-14. **Dictionary**
-    - `message`: `Update sleep data`
-    - `content`: [Base64 from step 10]
-
-15. **Text**
-    - Insert Dictionary from step 14 (converts to JSON)
-
-16. **Get Contents of URL** (PUT to create new file - no SHA needed!)
-    - Method: `PUT`
-    - URL: `https://api.github.com/repos/YOUR_USERNAME/YOUR_REPO/contents/[Text from step 13]`
-    - Headers:
-      - `Authorization`: `token [Text from step 11]`
-      - `Accept`: `application/vnd.github.v3+json`
-      - `Content-Type`: `application/json`
-    - Request Body Type: `File`
-    - Request Body: [Text from step 15]
-
-17. **Show Notification**
-    - "✅ Sleep data uploaded"
-
-**Note:** Each run creates a new timestamped file (no SHA needed!). The GitHub Action finds and processes the latest one, then cleans up old files.
-
-#### Automate:
-
-1. Go to **Shortcuts** → **Automation** tab
-2. **Create Personal Automation**
-3. **Time of Day** → `4:00 AM` → **Daily**
-4. **Run Shortcut** → Select your sleep export shortcut
-5. **Turn off** "Ask Before Running"
-
-### 4. Test
-
-Run the shortcut manually once. Check:
-- GitHub for `export-YYYY-MM-DD-HHMMSS.json` file
-- Actions tab for workflow run
-- Google Calendar for events
-
-**Note:** Each shortcut run creates a new timestamped file. Old files are automatically cleaned up (keeps last 5).
-
-## Done
-
-Runs daily at 4 AM automatically. Zero maintenance.
-
-## Calendar Access
-
-If you set `SHARE_WITH_EMAILS`, those users will have write access to the calendar.
-
-Find in Google Calendar → "Other calendars" → "Sleep Data"
+Your calendar is publicly readable, so anyone can subscribe using the link.
 
 ## Sleep Scores
 
@@ -153,7 +49,6 @@ Each sleep event is scored 0-100 based on duration:
 
 ### Scoring Details
 
-The score calculation:
 - **< 6 hours**: Score = (duration/6) × 50 (0-50 range)
 - **6-8 hours**: Score = 50 + (duration - 6)/2 × 50 (50-100 range, peak at 8h)
 - **8-10 hours**: Score = 100 - (duration - 8)/2 × 10 (100-90 range)
@@ -161,36 +56,28 @@ The score calculation:
 
 Scores are shown in the event title (emoji) and description (full score with breakdown).
 
-## Cloud Run Deployment (Recommended for Distribution)
+## Features
 
-For distributing the shortcut without requiring users to set up GitHub tokens, you can deploy the API to Google Cloud Run.
+- ✅ Automatic daily sync
+- ✅ Per-user calendars (one per email)
+- ✅ Detailed sleep stage events (Core, Deep, REM, Awake)
+- ✅ Aggregated sleep sessions
+- ✅ Public calendar links for easy subscription
 
-**📱 Pre-built Shortcut for Cloud Run API:** [Get Shortcut](https://www.icloud.com/shortcuts/440e470b1c6a462a93fddf04b2b74c87)
+## How It Works
 
-### Quick Start
+1. Shortcut collects sleep data from Apple Health (last 7 days)
+2. Sends data to API with your email
+3. API creates/updates your personal calendar: `Sleep Data - {email}`
+4. Calendar is publicly readable (anyone can subscribe via link)
 
-1. **Deploy to Cloud Run** (see [CLOUD_RUN_SETUP.md](CLOUD_RUN_SETUP.md) for details):
-   ```bash
-   ./scripts/deploy.sh
-   ```
+## For Developers
 
-2. **Update iOS Shortcut** to POST directly to your Cloud Run URL:
-   - Method: `POST`
-   - URL: `https://your-service-url.run.app/sync`
-   - Body: `{"email": "user@example.com", "samples": [...]}`
+This project uses a Cloud Run API to handle calendar creation and syncing. See the codebase for implementation details.
 
-### Benefits
+- [CLOUD_RUN_SETUP.md](CLOUD_RUN_SETUP.md) - Deployment guide
+- [CLOUD_RUN_SHORTCUT_INSTRUCTIONS.md](CLOUD_RUN_SHORTCUT_INSTRUCTIONS.md) - Shortcut customization
 
-- No GitHub token needed in shortcut
-- Each user gets their own calendar automatically
-- No per-user setup required
+## License
 
-### Setup Guide
-
-See [CLOUD_RUN_SETUP.md](CLOUD_RUN_SETUP.md) for complete deployment instructions, including:
-- Google Cloud setup
-- Service account configuration
-- CI/CD with GitHub Actions
-- API usage examples
-
-The Cloud Run deployment creates per-user calendars named `Sleep Data - {email}`, owned by your service account but shared with each user's email.
+MIT
