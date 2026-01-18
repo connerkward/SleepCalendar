@@ -1,5 +1,6 @@
 service-account.json
 export.json
+export-*.json
 *.pyc
 __pycache__/
 .env

@@ -2,6 +2,8 @@
 
 Auto-sync iPhone sleep data to Google Calendar with scores (😴 🟢 🔴)
 
+📱 **Get the Shortcut:** [Install from iCloud](https://www.icloud.com/shortcuts/440e470b1c6a462a93fddf04b2b74c87)
+
 ## Setup (One Time)
 
 ### 1. Push to GitHub
@@ -29,6 +31,14 @@ git push -u origin main
    - Click "Add secret"
 
 ### 3. Create iOS Shortcut
+
+**Option A: Use Pre-built Shortcut (Easiest)**
+
+📱 [Get the Shortcut](https://www.icloud.com/shortcuts/440e470b1c6a462a93fddf04b2b74c87)
+
+After installing, configure your email (first run will prompt).
+
+**Option B: Build Manually**
 
 Open **Shortcuts app on iPhone** → Create new shortcut → Add these actions:
 
@@ -151,9 +161,11 @@ The score calculation:
 
 Scores are shown in the event title (emoji) and description (full score with breakdown).
 
-## Cloud Run Deployment (Alternative)
+## Cloud Run Deployment (Recommended for Distribution)
 
 For distributing the shortcut without requiring users to set up GitHub tokens, you can deploy the API to Google Cloud Run.
+
+**📱 Pre-built Shortcut for Cloud Run API:** [Get Shortcut](https://www.icloud.com/shortcuts/440e470b1c6a462a93fddf04b2b74c87)
 
 ### Quick Start
 

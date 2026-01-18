@@ -1,5 +1,7 @@
 # iOS Shortcut Setup for Cloud Run API
 
+📱 **Pre-built Shortcut:** [Install from iCloud](https://www.icloud.com/shortcuts/440e470b1c6a462a93fddf04b2b74c87)
+
 ## Update Your Shortcut
 
 Replace the GitHub upload section with a direct POST to the Cloud Run API.
